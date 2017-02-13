@@ -16,31 +16,38 @@ var prefs = new Preferences('feeds');
 
 program
   .version(pkg.version)
-  .option('-o, --option','option description')
-  .option('-i, --input [optional]','optional user input')
-  .option('-I, --another-input <required>','required user input')
-  .command('claim <type> [optional]')
-  .description('Claims a new feed or aggregator')
-  .action((req, optional) => {
-    console.log('.action() allows us to implement the command');
-    console.log('User passed %s', req);
-    if (optional) {
-      console.log('found options');
-      optional.forEach(function(opt){
-        console.log("User passed optional arguments: %s", opt);
-      });
-    }
-    claim();
-  });
+  .option('-c, --clear','clear user preferences');
+  // .option('-i, --input [optional]','optional user input')
+  // .option('-I, --another-input <required>','required user input');
+
+// program
+//   .command('claim <type> [optional]')
+//   .description('Claims a new feed or aggregator')
+//   .action((req, optional) => {
+//     console.log('.action() allows us to implement the command');
+//     console.log('User passed %s', req);
+//     if (optional) {
+//       console.log('found options');
+//       optional.forEach(function(opt){
+//         console.log("User passed optional arguments: %s", opt);
+//       });
+//     }
+//     claim();
+//   });
   
-program
-  .command('inspect <type> <id> [optional]')
-  .description('Inspect a feed or aggregator')
-  .action((req, optional) => {
-    inspect();
-  });
+
+// program
+//   .command('inspect <type> <id> [optional]')
+//   .description('Inspect a feed or aggregator')
+//   .action((req, optional) => {
+//     inspect();
+//   });
 
 program.parse(process.argv); // end with parse to parse through the input
+
+if (program.clear) {
+  prefs.feeds = {};
+}
 
 function init() {
   const Feedbase = require("./lib/feedbase.js");
