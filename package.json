@@ -1,0 +1,28 @@
+{
+  "name": "feeds",
+  "version": "1.0.0",
+  "description": "Command line app to manage feeds easily.",
+  "main": "feeds.js",
+  "bin": "feeds.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nanexcool/feeds.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nanexcool/feeds/issues"
+  },
+  "homepage": "https://github.com/nanexcool/feeds#readme",
+  "dependencies": {
+    "clui": "^0.3.1",
+    "commander": "^2.9.0",
+    "inquirer": "^3.0.1",
+    "preferences": "^0.2.1",
+    "web3": "^0.18.2"
+  }
+}
