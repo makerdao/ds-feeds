@@ -87,15 +87,14 @@ program
           status.stop();
           console.log('There was an error processing your transaction');
         } else {
-          console.log('Transaction: ', tx);
-          status.message('Transaction confirmed! Waiting for result...');
+          status.message(`Transaction ${tx} pending! Waiting for confirmation...`);
           // Set up filter
           dapple.filter({}, (err, id) => {
             status.stop();
             if (err) {
               console.log('Error: ', err.message);
             } else if (dapple.owner(id) === prefs.account) {
-              console.log('Success: ', id);
+              console.log(JSON.stringify(dapple.inspect(id), null, 2));
             } else {
               console.warn('Something weird: ', id);
             }
@@ -136,7 +135,7 @@ program
         prefs[cmd] = answer.address;
         const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
         // not working??
-        const result = dapple.inspect(utils.toBytes12(id));
+        const result = dapple.inspect(id);
         status.stop();
         console.log(JSON.stringify(result, null, 2));
       })
