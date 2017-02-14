@@ -1,10 +1,26 @@
-const aggregator = require('./lib/aggregator.js');
+const Aggregator = require('./lib/aggregator.js');
 const web3 = require('./web3');
 
 module.exports = (address, env) => {
-  aggregator.environments[env].aggregator.value = address;
-  aggregator.class(web3, env);
-  aggregator.objects.aggregator.filter = (options, callback) => {
+  Aggregator.environments[env].aggregator.value = address;
+  Aggregator.class(web3, env);
+  const toString = x => web3.toAscii(x).replace(/\0/g, '');
+
+  const aggregator = Aggregator.objects.aggregator;
+
+  aggregator.inspect = (id) => {
+    const result = {
+      id: web3.toDecimal(id),
+      owner: aggregator.owner(id),
+      label: toString(aggregator.label(id)),
+      minimumValid: web3.toDecimal(aggregator.minimumValid(id)),
+      available: aggregator.tryGet.call(id)[1],
+      value: aggregator.tryGet.call(id)[0],
+    };
+    return result;
+  };
+
+  aggregator.filter = (options, callback) => {
     web3.eth.filter(Object.assign({
       address,
     }, options), (error, event) => {
@@ -18,5 +34,5 @@ module.exports = (address, env) => {
       }
     });
   };
-  return aggregator.objects.aggregator;
+  return aggregator;
 };

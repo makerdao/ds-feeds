@@ -3,7 +3,7 @@ const web3 = require('./web3');
 function toBytes(number, bytes) {
   let hex = web3.fromDecimal(number).replace('0x', '');
   while (hex.length < bytes * 2) hex = `0${hex}`;
-  return hex;
+  return `0x${hex}`;
 }
 
 function toBytes12(number) {

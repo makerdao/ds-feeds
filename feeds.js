@@ -32,14 +32,15 @@ function getDefaultAccount(force = false) {
 
 function askForAddress(_type) {
   const type = _type === 'feed' ? 'feedbase' : 'aggregator';
-  if (prefs[type]) {
-    return Promise.resolve(prefs[type]);
-  }
+  // if (prefs[type]) {
+  //   return Promise.resolve(prefs[type]);
+  // }
   const questions = [
     {
       name: 'address',
       message: `Enter ${type} address:`,
       type: 'input',
+      default: prefs[type] || '',
       validate: str => (
         web3.isAddress(str) || 'Invalid address'
       ),
@@ -74,6 +75,8 @@ program
       return askForAddress(cmd);
     })
     .then((answer) => {
+      prefs[cmd] = answer.address;
+      console.log(JSON.stringify(prefs, null, 2));
       const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
       status.message(`Claiming ${cmd}. Please authorize transaction.`);
       status.start();
@@ -114,9 +117,34 @@ program
   .action((cmd, id) => {
     if (cmd !== 'feed' && cmd !== 'agg') {
       console.log('Error: <type> must be "feed" or "agg"');
-      process.exit(1);
+      // process.exit(1);
     } else {
-      console.log('type "%s" id "%s"', cmd, utils.toBytes12(id));
+      status.start();
+      utils.getNetwork().then((network) => {
+        status.stop();
+        prefs.network = network;
+        return getDefaultAccount(false);
+      })
+      .then((answer) => {
+        prefs.account = answer.account;
+        web3.eth.defaultAccount = answer.account;
+        return askForAddress(cmd);
+      })
+      .then((answer) => {
+        prefs[cmd] = answer.address;
+        const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
+        status.message(`Inspecting ${cmd}. Please wait.`);
+        // status.start();
+        // not working??
+        const result = dapple.inspect(utils.toBytes12(id));
+        // status.stop();
+        console.log(JSON.stringify(result, null, 2));
+      })
+      .catch((error) => {
+        status.stop();
+        console.log(error);
+        process.exit(1);
+      });
     }
   });
 
