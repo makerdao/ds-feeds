@@ -26,5 +26,10 @@
     "inquirer": "^3.0.1",
     "preferences": "^0.2.1",
     "web3": "^0.18.2"
+  },
+  "devDependencies": {
+    "eslint": "^3.15.0",
+    "eslint-config-airbnb-base": "^11.1.0",
+    "eslint-plugin-import": "^2.2.0"
   }
 }

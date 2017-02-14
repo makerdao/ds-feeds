@@ -1,17 +1,17 @@
 #! /usr/bin/env node
-'use strict';
 
 const pkg = require('./package.json');
 const program = require('commander');
-const CLI = require('clui'),
-  Spinner = CLI.Spinner;
+const CLI = require('clui');
 const inquirer = require('inquirer');
 const Preferences = require('preferences');
+
+const Spinner = CLI.Spinner;
 const prefs = new Preferences('feeds');
 const Web3 = require('web3');
 
-let web3 = new Web3(this.web3 ? this.web3.currentProvider : (
-  new Web3.providers.HttpProvider("http://localhost:8545")
+const web3 = new Web3(this.web3 ? this.web3.currentProvider : (
+  new Web3.providers.HttpProvider('http://localhost:8545')
 ));
 
 program
@@ -23,7 +23,7 @@ program
   .description('claims a feed or an aggregator')
   .action((cmd) => {
     console.log(cmd);
-    var f = require('./feedbase.js');
+    // const f = require('./feedbase.js');
   });
 
 program
@@ -38,7 +38,7 @@ program
     }
   });
 
-program.on('--help', function(){
+program.on('--help', () => {
   console.log('  Examples:');
   console.log('');
   console.log('    $ custom-help --help');
@@ -48,7 +48,7 @@ program.on('--help', function(){
 
 program.parse(process.argv); // end with parse to parse through the input
 
-//process.exit(0);
+// process.exit(0);
 
 if (program.clear) {
   prefs.feeds = {};
@@ -56,7 +56,7 @@ if (program.clear) {
   process.exit(0);
 }
 
-if(!program.args.length) program.help();
+if (!program.args.length) program.help();
 
 function init() {
   const Feedbase = require("./lib/feedbase.js");
@@ -72,42 +72,42 @@ function init() {
 // var status = new Spinner('Getting network version...');
 
 function askForFeedbase(callback) {
-  var questions = [
+  const questions = [
     {
       name: 'feedbase',
       message: 'Enter a feedbase address:',
       type: 'input',
       default: '0x929be46495338d84ec78e6894eeaec136c21ab7b',
       validate: (str) => {
-        return web3.isAddress(str);
-      }
+        web3.isAddress(str);
+      },
     },
   ];
   inquirer.prompt(questions).then(callback);
 }
 
 function askForAggregator(callback) {
-  var questions = [
+  const questions = [
     {
       name: 'aggregator',
       message: 'Enter an aggregator address:',
       type: 'input',
       default: '0x509a7c442b0f8220886cfb9af1a11414680a6749',
       validate: (str) => {
-        return web3.isAddress(str);
-      }
+        web3.isAddress(str);
+      },
     },
   ];
   inquirer.prompt(questions).then(callback);
 }
 
 function getDefaultAccount(callback) {
-  var questions = [
+  const questions = [
     {
       name: 'account',
       message: 'Select your default account:',
       type: 'list',
-      choices: web3.eth.accounts
+      choices: web3.eth.accounts,
     },
   ];
   inquirer.prompt(questions).then(callback);

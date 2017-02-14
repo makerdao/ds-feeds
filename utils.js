@@ -4,18 +4,18 @@ function toBytes12(number) {
 
 function toBytes(number, bytes) {
   let hex = web3.fromDecimal(number).replace('0x', '');
-  while (hex.length < bytes * 2) hex = '0' + hex;
+  while (hex.length < bytes * 2) hex = `0${hex}`;
   return hex;
 }
 
 function getNetwork() {
-  web3.version.getNetwork((error, network) => {
+  web3.version.getNetwork((error, result) => {
     if (error) {
       return false;
     } else {
       // Private network
-      if (network > 3) { network = 4; }
-      const env = [, "live", "morden", "ropsten", "develop"][network];
+      const network = result > 3 ? 4 : result;
+      const env = [null, 'live', 'morden', 'ropsten', 'develop'][network];
       return env;
     }
   });
