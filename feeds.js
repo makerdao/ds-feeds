@@ -7,6 +7,8 @@ const inquirer = require('inquirer');
 const Preferences = require('preferences');
 const web3 = require('./web3');
 const utils = require('./utils');
+const feedbase = require('./feedbase');
+const aggregator = require('./aggregator');
 
 const Spinner = CLI.Spinner;
 let prefs = new Preferences('com.makerdao.feeds');
@@ -15,17 +17,29 @@ const status = new Spinner('Connecting to network...');
 
 program
   .version(pkg.version)
-  .option('-c, --clear', 'clear user preferences');
+  .option('-c, --clear', 'clear user preferences')
+  .option('-a, --account [account]', 'set default account')
+  .option('-i, --info', 'gets default information');
 
 program
-  .command('claim <type>')
+  .command('claim <type> [optional]')
   .description('claims a feed or an aggregator')
-  .action((cmd) => {
+  .option('-a, --address <address>', 'sets a new contract address')
+  .action((cmd, optional) => {
     status.start();
+    if (optional) {
+      console.log(optional);
+    }
     utils.getNetwork().then((network) => {
       status.stop();
       prefs.network = network;
-      console.log(prefs);
+      if (!web3.eth.defaultAccount) {
+        getDefaultAccount(false).then((answer) => {
+          prefs.account = answer.account;
+          web3.eth.defaultAccount = answer.account;
+        });
+      }
+      console.log('mmm');
     })
     .catch(() => {
       status.stop();
@@ -49,23 +63,36 @@ program
 program.on('--help', () => {
   console.log('  Examples:');
   console.log('');
-  console.log('    $ custom-help --help');
-  console.log('    $ custom-help -h');
+  console.log('    $ feeds claim feed');
+  console.log('    $ feeds claim aggregator -a 0x1234...');
+  console.log('    $ feeds inspect feed 1');
   console.log('');
 });
 
 program.parse(process.argv); // end with parse to parse through the input
 
-// process.exit(0);
-
 if (program.clear) {
   prefs = {};
   console.log('Cleared preferences');
-  console.log(prefs);
-  process.exit(0);
 }
 
-if (!program.args.length) program.help();
+if (program.account) {
+  if (program.account === true) {
+    getDefaultAccount(true).then((answer) => {
+      prefs.account = answer.account;
+      web3.eth.defaultAccount = answer.account;
+      console.log('Set default account');
+    });
+  } else if (web3.isAddress(program.account)) {
+    prefs.account = program.account;
+    web3.eth.defaultAccount = program.account;
+    console.log('Set default account');
+  } else {
+    console.log('Error: account invalid');
+  }
+}
+
+if (!program.args.length && !program.account) program.help();
 
 function init() {
   const feedbase = require('./feedbase.js')('0x929be46495338d84ec78e6894eeaec136c21ab7b', 'ropsten');
@@ -81,37 +108,25 @@ function init() {
 
 // var status = new Spinner('Getting network version...');
 
-function askForFeedbase(callback) {
+function askForAddress(_type) {
+  const type = _type === 'feed' ? 'feedbase' : 'aggregator';
   const questions = [
     {
-      name: 'feedbase',
-      message: 'Enter a feedbase address:',
+      name: type,
+      message: `Enter ${type} address:`,
       type: 'input',
-      default: '0x929be46495338d84ec78e6894eeaec136c21ab7b',
       validate: (str) => {
         web3.isAddress(str);
       },
     },
   ];
-  inquirer.prompt(questions).then(callback);
+  return inquirer.prompt(questions);
 }
 
-function askForAggregator(callback) {
-  const questions = [
-    {
-      name: 'aggregator',
-      message: 'Enter an aggregator address:',
-      type: 'input',
-      default: '0x509a7c442b0f8220886cfb9af1a11414680a6749',
-      validate: (str) => {
-        web3.isAddress(str);
-      },
-    },
-  ];
-  inquirer.prompt(questions).then(callback);
-}
-
-function getDefaultAccount(callback) {
+function getDefaultAccount(force = false) {
+  if (prefs.account && !force) {
+    return new Promise(resolve => resolve(prefs.account));
+  }
   const questions = [
     {
       name: 'account',
@@ -120,5 +135,5 @@ function getDefaultAccount(callback) {
       choices: web3.eth.accounts,
     },
   ];
-  inquirer.prompt(questions).then(callback);
+  return inquirer.prompt(questions);
 }
