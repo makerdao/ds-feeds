@@ -2,8 +2,10 @@
   "name": "feeds",
   "version": "1.0.0",
   "description": "Command line app to manage feeds easily.",
-  "main": "feeds.js",
-  "bin": "feeds.js",
+  "main": "./feeds.js",
+  "bin": {
+    "feeds": "./feeds.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
