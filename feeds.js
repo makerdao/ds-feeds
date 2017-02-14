@@ -15,6 +15,39 @@ let prefs = new Preferences('com.makerdao.feeds');
 
 const status = new Spinner('Connecting to network...');
 
+function getDefaultAccount(force = false) {
+  if (prefs.account && !force) {
+    return Promise.resolve({ answer: prefs.account });
+  }
+  const questions = [
+    {
+      name: 'account',
+      message: 'Select your default account:',
+      type: 'list',
+      choices: web3.eth.accounts,
+    },
+  ];
+  return inquirer.prompt(questions);
+}
+
+function askForAddress(_type) {
+  const type = _type === 'feed' ? 'feedbase' : 'aggregator';
+  if (prefs[type]) {
+    return Promise.resolve(prefs[type]);
+  }
+  const questions = [
+    {
+      name: 'address',
+      message: `Enter ${type} address:`,
+      type: 'input',
+      validate: str => (
+        web3.isAddress(str) || 'Invalid address'
+      ),
+    },
+  ];
+  return inquirer.prompt(questions);
+}
+
 program
   .version(pkg.version)
   .option('-c, --clear', 'clear user preferences')
@@ -24,7 +57,7 @@ program
 program
   .command('claim <type> [optional]')
   .description('claims a feed or an aggregator')
-  .option('-a, --address <address>', 'sets a new contract address')
+  .option('-s, --set <address>', 'sets a new contract address')
   .action((cmd, optional) => {
     status.start();
     if (optional) {
@@ -33,17 +66,44 @@ program
     utils.getNetwork().then((network) => {
       status.stop();
       prefs.network = network;
-      if (!web3.eth.defaultAccount) {
-        getDefaultAccount(false).then((answer) => {
-          prefs.account = answer.account;
-          web3.eth.defaultAccount = answer.account;
-        });
-      }
-      console.log('mmm');
+      return getDefaultAccount(false);
     })
-    .catch(() => {
+    .then((answer) => {
+      prefs.account = answer.account;
+      web3.eth.defaultAccount = answer.account;
+      return askForAddress(cmd);
+    })
+    .then((answer) => {
+      const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
+      status.message(`Claiming ${cmd}. Please authorize transaction.`);
+      status.start();
+      // not working??
+      // dapple.owner(utils.toBytes12(1), (e, r) => console.log(r));
+      dapple.claim({ from: web3.eth.defaultAccount }, (error, tx) => {
+        if (error) {
+          status.stop();
+          console.log('There was an error processing your transaction');
+        } else {
+          console.log('Transaction: ', tx);
+          status.message('Transaction confirmed! Waiting for result...');
+          // Set up filter
+          dapple.filter({}, (err, id) => {
+            status.stop();
+            if (err) {
+              console.log('Error: ', err.message);
+            } else if (dapple.owner(id) === prefs.account) {
+              console.log('Success: ', id);
+            } else {
+              console.warn('Something weird: ', id);
+            }
+            process.exit();
+          });
+        }
+      });
+    })
+    .catch((error) => {
       status.stop();
-      console.log('Error connecting to network. Do you have a node running?');
+      console.log(error);
       process.exit(1);
     });
   });
@@ -92,48 +152,8 @@ if (program.account) {
   }
 }
 
-if (!program.args.length && !program.account) program.help();
-
-function init() {
-  const feedbase = require('./feedbase.js')('0x929be46495338d84ec78e6894eeaec136c21ab7b', 'ropsten');
-  return feedbase;
-  // const Aggregator = require('./aggregator.js');
-
-  // Aggregator.environments.ropsten.aggregator.value = '0x509a7c442b0f8220886cfb9af1a11414680a6749';
-  // Feedbase.environments.ropsten.feedbase.value = '0x929be46495338d84ec78e6894eeaec136c21ab7b';
+if (program.info) {
+  console.log(JSON.stringify(prefs, null, 2));
 }
 
-// const f = init();
-// f.claim((e,r) => console.log(r));
-
-// var status = new Spinner('Getting network version...');
-
-function askForAddress(_type) {
-  const type = _type === 'feed' ? 'feedbase' : 'aggregator';
-  const questions = [
-    {
-      name: type,
-      message: `Enter ${type} address:`,
-      type: 'input',
-      validate: (str) => {
-        web3.isAddress(str);
-      },
-    },
-  ];
-  return inquirer.prompt(questions);
-}
-
-function getDefaultAccount(force = false) {
-  if (prefs.account && !force) {
-    return new Promise(resolve => resolve(prefs.account));
-  }
-  const questions = [
-    {
-      name: 'account',
-      message: 'Select your default account:',
-      type: 'list',
-      choices: web3.eth.accounts,
-    },
-  ];
-  return inquirer.prompt(questions);
-}
+// if (!program.args.length && !program.account) program.help();
