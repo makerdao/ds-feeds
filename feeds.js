@@ -31,7 +31,7 @@ function getDefaultAccount(force = false) {
 }
 
 function askForAddress(_type) {
-  const type = _type === 'feed' ? 'feed' : 'aggregator';
+  const type = _type === 'feedbase' ? 'feedbase' : 'aggregator';
   // if (prefs[type]) {
   //   return Promise.resolve(prefs[type]);
   // }
@@ -49,11 +49,105 @@ function askForAddress(_type) {
   return inquirer.prompt(questions);
 }
 
+function inspect(type, id) {
+  // status.start();
+  utils.getNetwork().then((network) => {
+    status.stop();
+    prefs.network = network;
+    return getDefaultAccount(false);
+  })
+  .then((answer) => {
+    prefs.account = answer.account;
+    web3.eth.defaultAccount = answer.account;
+    return askForAddress(type);
+  })
+  .then((answer) => {
+    status.message(`Inspecting ${type}. Please wait.`);
+    status.start();
+    prefs[type] = answer.address;
+    const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
+    // not working??
+    const result = dapple.inspect(id);
+    status.stop();
+    console.log(JSON.stringify(result, null, 2));
+  })
+  .catch((error) => {
+    status.stop();
+    console.log(error);
+    process.exit(1);
+  });
+}
+
+function runMethod(type, method, args) {
+  // status.start();
+  utils.getNetwork().then((network) => {
+    status.stop();
+    prefs.network = network;
+    return getDefaultAccount(false);
+  })
+  .then((answer) => {
+    prefs.account = answer.account;
+    web3.eth.defaultAccount = answer.account;
+    return askForAddress(type);
+  })
+  .then((answer) => {
+    status.message(`Inspecting ${type}. Please wait.`);
+    status.start();
+    prefs[type] = answer.address;
+    const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
+    if (dapple[method]) {
+      if (method === 'inspect') {
+        console.log(JSON.stringify(dapple.inspect(args[0]), null, 2));
+      } else {
+        args[0] = utils.toBytes12(args[0]);
+        dapple[method](...args);
+        dapple.filter({}, (err, id) => {
+          if (err) {
+            console.log('Error: ', err.message);
+          } else if (dapple.owner(id) === prefs.account) {
+            console.log(JSON.stringify(dapple.inspect(id), null, 2));
+          } else {
+            console.warn('Something weird: ', id);
+          }
+          process.exit();
+        });
+      }
+    }
+    status.stop();
+    // console.log(JSON.stringify(dapple['claim'], null, 2));
+  })
+  .catch((error) => {
+    status.stop();
+    console.log(error);
+    process.exit(1);
+  });
+}
+
 program
   .version(pkg.version)
   .option('-c, --clear', 'clear user preferences')
   .option('-a, --account [account]', 'set default account')
   .option('-i, --info', 'gets default information');
+
+program
+  .command('feedbase <method> [args...]')
+  .description('xxx')
+  .action((method, args) => {
+    console.log({ method, args });
+    runMethod('feedbase', method, args);
+  });
+
+program
+  .command('aggregator <method> [args...]')
+  .description('xxx')
+  .action((type, method, args) => {
+    if (method === 'inspect') {
+      inspect('aggregator', args[0]);
+    } else {
+
+    }
+    console.log({ type, method, args });
+  });
 
 program
   .command('claim <type> [optional]')
@@ -113,37 +207,12 @@ program
 program
   .command('inspect <type> <id>')
   .description('inspect a feed or an aggregator')
-  .action((cmd, id) => {
-    if (cmd !== 'feed' && cmd !== 'aggregator') {
+  .action((type, id) => {
+    if (type !== 'feed' && type !== 'aggregator') {
       console.log('Error: <type> must be "feed" or "aggregator"');
       // process.exit(1);
     } else {
-      status.start();
-      utils.getNetwork().then((network) => {
-        status.stop();
-        prefs.network = network;
-        return getDefaultAccount(false);
-      })
-      .then((answer) => {
-        prefs.account = answer.account;
-        web3.eth.defaultAccount = answer.account;
-        return askForAddress(cmd);
-      })
-      .then((answer) => {
-        status.message(`Inspecting ${cmd}. Please wait.`);
-        status.start();
-        prefs[cmd] = answer.address;
-        const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-        // not working??
-        const result = dapple.inspect(id);
-        status.stop();
-        console.log(JSON.stringify(result, null, 2));
-      })
-      .catch((error) => {
-        status.stop();
-        console.log(error);
-        process.exit(1);
-      });
+      inspect(type, id);
     }
   });
 
