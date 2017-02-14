@@ -31,7 +31,7 @@ function getDefaultAccount(force = false) {
 }
 
 function askForAddress(_type) {
-  const type = _type === 'feed' ? 'feedbase' : 'aggregator';
+  const type = _type === 'feed' ? 'feed' : 'aggregator';
   // if (prefs[type]) {
   //   return Promise.resolve(prefs[type]);
   // }
@@ -115,8 +115,8 @@ program
   .command('inspect <type> <id>')
   .description('inspect a feed or an aggregator')
   .action((cmd, id) => {
-    if (cmd !== 'feed' && cmd !== 'agg') {
-      console.log('Error: <type> must be "feed" or "agg"');
+    if (cmd !== 'feed' && cmd !== 'aggregator') {
+      console.log('Error: <type> must be "feed" or "aggregator"');
       // process.exit(1);
     } else {
       status.start();
@@ -131,13 +131,13 @@ program
         return askForAddress(cmd);
       })
       .then((answer) => {
+        status.message(`Inspecting ${cmd}. Please wait.`);
+        status.start();
         prefs[cmd] = answer.address;
         const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-        status.message(`Inspecting ${cmd}. Please wait.`);
-        // status.start();
         // not working??
         const result = dapple.inspect(utils.toBytes12(id));
-        // status.stop();
+        status.stop();
         console.log(JSON.stringify(result, null, 2));
       })
       .catch((error) => {
