@@ -21,21 +21,20 @@ program
 program
   .command('claim <type>')
   .description('claims a feed or an aggregator')
-  .action((type) => {
-    console.log(type);
+  .action((cmd) => {
+    console.log(cmd);
     var f = require('./feedbase.js');
   });
 
 program
   .command('inspect <type>')
   .description('inspect a feed or an aggregator')
-  .action((type) => {
-    console.log('Type: ', type);
-    if (type !== 'feed' || type !== 'agg') {
+  .action((cmd) => {
+    if (cmd !== 'feed' && cmd !== 'agg') {
       console.log('Error: <type> must be "feed" or "agg"');
       process.exit(1);
     } else {
-      console.log('exec "%s"', type);
+      console.log('exec "%s"', cmd);
     }
   });
 
