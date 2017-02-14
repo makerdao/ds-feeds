@@ -5,14 +5,13 @@ const program = require('commander');
 const CLI = require('clui');
 const inquirer = require('inquirer');
 const Preferences = require('preferences');
+const web3 = require('./web3');
+const utils = require('./utils');
 
 const Spinner = CLI.Spinner;
-const prefs = new Preferences('feeds');
-const Web3 = require('web3');
+let prefs = new Preferences('com.makerdao.feeds');
 
-const web3 = new Web3(this.web3 ? this.web3.currentProvider : (
-  new Web3.providers.HttpProvider('http://localhost:8545')
-));
+const status = new Spinner('Connecting to network...');
 
 program
   .version(pkg.version)
@@ -22,19 +21,28 @@ program
   .command('claim <type>')
   .description('claims a feed or an aggregator')
   .action((cmd) => {
-    console.log(cmd);
-    // const f = require('./feedbase.js');
+    status.start();
+    utils.getNetwork().then((network) => {
+      status.stop();
+      prefs.network = network;
+      console.log(prefs);
+    })
+    .catch(() => {
+      status.stop();
+      console.log('Error connecting to network. Do you have a node running?');
+      process.exit(1);
+    });
   });
 
 program
-  .command('inspect <type>')
+  .command('inspect <type> <id>')
   .description('inspect a feed or an aggregator')
-  .action((cmd) => {
+  .action((cmd, id) => {
     if (cmd !== 'feed' && cmd !== 'agg') {
       console.log('Error: <type> must be "feed" or "agg"');
       process.exit(1);
     } else {
-      console.log('exec "%s"', cmd);
+      console.log('type "%s" id "%s"', cmd, utils.toBytes12(id));
     }
   });
 
@@ -51,23 +59,25 @@ program.parse(process.argv); // end with parse to parse through the input
 // process.exit(0);
 
 if (program.clear) {
-  prefs.feeds = {};
+  prefs = {};
   console.log('Cleared preferences');
+  console.log(prefs);
   process.exit(0);
 }
 
 if (!program.args.length) program.help();
 
 function init() {
-  const Feedbase = require("./lib/feedbase.js");
-  const Aggregator = require("./lib/aggregator.js");
+  const feedbase = require('./feedbase.js')('0x929be46495338d84ec78e6894eeaec136c21ab7b', 'ropsten');
+  return feedbase;
+  // const Aggregator = require('./aggregator.js');
 
-  Aggregator.environments.ropsten.aggregator.value = '0x509a7c442b0f8220886cfb9af1a11414680a6749';
-  Feedbase.environments.ropsten.feedbase.value = '0x929be46495338d84ec78e6894eeaec136c21ab7b';
-
-  feedbase = new Feedbase.class(web3, env).objects.feedbase
-  aggregator = new Aggregator.class(web3, env).objects.aggregator
+  // Aggregator.environments.ropsten.aggregator.value = '0x509a7c442b0f8220886cfb9af1a11414680a6749';
+  // Feedbase.environments.ropsten.feedbase.value = '0x929be46495338d84ec78e6894eeaec136c21ab7b';
 }
+
+// const f = init();
+// f.claim((e,r) => console.log(r));
 
 // var status = new Spinner('Getting network version...');
 
@@ -111,10 +121,4 @@ function getDefaultAccount(callback) {
     },
   ];
   inquirer.prompt(questions).then(callback);
-}
-
-function getBalance(account) {
-  web3.eth.getBalance(account, (e, r) => {
-    prefs.feeds.balance = r.valueOf();
-  });
 }

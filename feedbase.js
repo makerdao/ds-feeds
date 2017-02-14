@@ -1,10 +1,8 @@
-const Feedbase = require('./lib/feedbase.js');
+const feedbase = require('./lib/feedbase.js');
+const web3 = require('./web3');
 
-Feedbase.environments.ropsten.feedbase.value = '0x929be46495338d84ec78e6894eeaec136c21ab7b';
-const feedbase = new Feedbase.class(web3, 'ropsten').objects.feedbase;
-
-feedbase.c = () => {
-  this.c({ from: web3.eth.coinbase }, (e, r) => { console.log(r); });
+module.exports = (address, env) => {
+  feedbase.environments[env].feedbase.value = address;
+  feedbase.class(web3, env);
+  return feedbase.objects.feedbase;
 };
-
-module.exports = feedbase;
