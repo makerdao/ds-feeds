@@ -137,6 +137,7 @@ program
 
 program
   .command('feedbase <method> [args...]')
+  .alias('f')
   .description('xxx')
   .action((method, args) => {
     runMethod('feedbase', method, args);
@@ -144,9 +145,9 @@ program
 
 program
   .command('aggregator <method> [args...]')
+  .alias('a')
   .description('xxx')
   .action((method, args) => {
-    console.log({ method, args });
     runMethod('aggregator', method, args);
   });
 
@@ -154,7 +155,7 @@ program.on('--help', () => {
   console.log('  Examples:');
   console.log('');
   console.log('    $ feeds feedbase claim');
-  console.log('    $ feeds feedbase set-label 3 "My Label"');
+  console.log('    $ feeds feedbase set_label 3 "My Label"');
   console.log('    $ feeds aggregator claim -a 0x929be46495338d84ec78e6894eeaec136c21ab7b');
   console.log('    $ feeds aggregator inspect 1');
   console.log('');
@@ -169,9 +170,10 @@ if (program.clear) {
 
 if (program.account) {
   if (program.account === true) {
-    // prefs.account = answer.account;
-    // web3.eth.defaultAccount = answer.account;
-    console.log('Set default account');
+    showAccountSelector().then((answer) => {
+      prefs.account = answer.account;
+      web3.eth.defaultAccount = answer.account;
+    });
   } else if (web3.isAddress(program.account)) {
     prefs.account = program.account;
     web3.eth.defaultAccount = program.account;
@@ -185,4 +187,4 @@ if (program.info) {
   dump(prefs);
 }
 
-// if (!program.args.length && !program.account) program.help();
+// if (!program.args.length) program.help();

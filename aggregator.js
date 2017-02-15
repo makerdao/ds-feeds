@@ -19,7 +19,6 @@ module.exports = (address, env) => {
       label: toString(aggregator.label(id)),
       feedsQuantity: web3.toDecimal(aggregator.feedsQuantity(id)),
       minimumValid: web3.toDecimal(aggregator.minimumValid(id)),
-      available: aggregator.tryGet.call(id)[1],
       value: web3.toDecimal(aggregator.tryGet.call(id)[0]),
     };
     return result;
