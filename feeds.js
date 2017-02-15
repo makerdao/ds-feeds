@@ -66,20 +66,23 @@ function runMethod(type, method, args) {
     const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
     if (dapple[method]) {
       if (method === 'inspect') {
-        console.log('Inspecting... Please wait.');
-        console.log(JSON.stringify(dapple.inspect(...utils.prepareArgs(args, 'bytes12')), null, 2));
+        console.log('Getting result... Please wait.');
+        console.log('Result', JSON.stringify(dapple.inspect(...utils.prepareArgs(args, 'bytes12')), null, 2));
       } else {
+        const setterMethod = method === 'claim' || method === 'set' || method.indexOf('set_') !== -1 || method === 'unset';
         const subMethod = utils.detectMethodArgs(dapple[method], args.length);
-        const func = subMethod ? dapple[method][subMethod] : dapple[method];
+        let func = subMethod ? dapple[method][subMethod] : dapple[method];
+        func = setterMethod ? func : func.call;
         const preparedArgs = subMethod ? utils.prepareArgs(args, subMethod) : args;
-        console.log('Waiting for your approval... Please sign the transaction.');
+        if (setterMethod) {
+          console.log('Waiting for your approval... Please sign the transaction.');
+        } else {
+          console.log('Getting result... Please wait.');
+        }
         func(...preparedArgs, (e, r) => {
           if (!e) {
             if (!e) {
-              if (method === 'claim' ||
-                  method === 'set' ||
-                  method.indexOf('set_') !== -1 ||
-                  method === 'unset') {
+              if (setterMethod) {
                 // It means we are calling a writing method
                 console.log(`Transaction ${r} was generated. Waiting for confirmation...`);
 
@@ -87,7 +90,7 @@ function runMethod(type, method, args) {
                   if (err) {
                     console.log('Error: ', err.message);
                   } else if (dapple.owner(id) === prefs.account) {
-                    console.log(JSON.stringify(dapple.inspect(id), null, 2));
+                    console.log('Result', JSON.stringify(dapple.inspect(id), null, 2));
                   } else {
                     console.warn('Something weird: ', id);
                   }
