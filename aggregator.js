@@ -1,6 +1,5 @@
 const Aggregator = require('./lib/aggregator.js');
 const web3 = require('./web3');
-const utils = require('./utils');
 
 module.exports = (address, env) => {
   Aggregator.environments[env].aggregator.value = address;
@@ -9,13 +8,7 @@ module.exports = (address, env) => {
 
   const aggregator = Aggregator.objects.aggregator;
 
-  aggregator.inspect = (_id) => {
-    let id = _id;
-    if (id.indexOf('0x') !== -1) {
-      id = id.substring(0, 26);
-    } else {
-      id = utils.toBytes12(id);
-    }
+  aggregator.inspect = (id) => {
     const owner = aggregator.owner(id);
     if (owner === '0x0000000000000000000000000000000000000000') {
       return 'Aggregator not claimed';

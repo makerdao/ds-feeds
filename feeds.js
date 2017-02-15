@@ -63,36 +63,6 @@ function askForAddress(_type) {
   return inquirer.prompt(questions);
 }
 
-function inspect(type, id) {
-  // status.start();
-  utils.getNetwork().then((network) => {
-    status.stop();
-    prefs.network = network;
-    return getDefaultAccount();
-  })
-  .then((answer) => {
-    console.log('Answer: ', answer);
-    prefs.account = answer.account;
-    web3.eth.defaultAccount = answer.account;
-    return askForAddress(type);
-  })
-  .then((answer) => {
-    status.message(`Inspecting ${type}. Please wait.`);
-    status.start();
-    prefs[type] = answer.address;
-    const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-    // not working??
-    const result = dapple.inspect(id);
-    status.stop();
-    dump(result);
-  })
-  .catch((error) => {
-    status.stop();
-    console.log(error);
-    process.exit(1);
-  });
-}
-
 function runMethod(type, method, args) {
   // status.start();
   utils.getNetwork().then((network) => {
@@ -106,30 +76,48 @@ function runMethod(type, method, args) {
     return askForAddress(type);
   })
   .then((answer) => {
-    status.message(`Inspecting ${type}. Please wait.`);
-    status.start();
     prefs[type] = answer.address;
     const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
     if (dapple[method]) {
       if (method === 'inspect') {
-        dump(dapple.inspect(args[0]));
+        console.log('Inspecting... Please wait.');
+        dump(dapple.inspect(...utils.prepareArgs(args, 'bytes12')));
       } else {
-        args[0] = utils.toBytes12(args[0]);
-        dapple[method](...args);
-        dapple.filter({}, (err, id) => {
-          if (err) {
-            console.log('Error: ', err.message);
-          } else if (dapple.owner(id) === prefs.account) {
-            dump(dapple.inspect(id));
-          } else {
-            console.warn('Something weird: ', id);
+        const subMethod = utils.detectMethodArgs(dapple[method], args.length);
+        const func = subMethod ? dapple[method][subMethod] : dapple[method];
+        const preparedArgs = subMethod ? utils.prepareArgs(args, subMethod) : args;
+        console.log('Waiting for your approval... Please sign the transaction.');
+        func(...preparedArgs, (e, r) => {
+          if (!e) {
+            if (!e) {
+              if (method === 'claim' ||
+                  method === 'set' ||
+                  method.indexOf('set_') !== -1 ||
+                  method === 'unset') {
+                // It means we are calling a writing method
+                console.log(`Transaction ${r} was generated. Waiting for confirmation...`);
+
+                dapple.filter({}, (err, id) => {
+                  if (err) {
+                    console.log('Error: ', err.message);
+                  } else if (dapple.owner(id) === prefs.account) {
+                    dump(dapple.inspect(id));
+                  } else {
+                    console.warn('Something weird: ', id);
+                  }
+                  process.exit();
+                });
+              } else {
+                // It means we are calling a read method
+                dump(r);
+              }
+            } else {
+              console.warn('Something weird: ', e);
+            }
           }
-          process.exit();
         });
       }
     }
-    status.stop();
-    // console.log(JSON.stringify(dapple['claim'], null, 2));
   })
   .catch((error) => {
     status.stop();
@@ -155,10 +143,8 @@ program
   .command('aggregator <method> [args...]')
   .description('xxx')
   .action((method, args) => {
-    if (method === 'inspect') {
-      inspect('aggregator', args[0]);
-    }
     console.log({ method, args });
+    runMethod('aggregator', method, args);
   });
 
 program.on('--help', () => {

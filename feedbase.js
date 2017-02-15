@@ -1,6 +1,5 @@
 const Feedbase = require('./lib/feedbase.js');
 const web3 = require('./web3');
-const utils = require('./utils');
 
 module.exports = (address, env) => {
   Feedbase.environments[env].feedbase.value = address;
@@ -9,13 +8,7 @@ module.exports = (address, env) => {
 
   const feedbase = Feedbase.objects.feedbase;
 
-  feedbase.inspect = (_id) => {
-    let id = _id;
-    if (id.indexOf('0x') !== -1) {
-      id = id.substring(0, 26);
-    } else {
-      id = utils.toBytes12(id);
-    }
+  feedbase.inspect = (id) => {
     const owner = feedbase.owner(id);
     if (owner === '0x0000000000000000000000000000000000000000') {
       return 'Feedbase not claimed';

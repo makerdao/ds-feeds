@@ -38,4 +38,41 @@ module.exports = {
       });
     })
   ),
+
+  detectMethodArgs: (object, argsQuantity) => {
+    let subMethod = null;
+    Object.keys(object).forEach((key) => {
+      if (key.indexOf('bytes') ||
+        key.indexOf('uint') ||
+        key.indexOf('string')) {
+
+        if (argsQuantity === (key.match(/,/g) || []).length + 1) {
+          subMethod = key;
+        }
+      }
+    });
+    return subMethod;
+  },
+
+  prepareArgs: (args, format) => {
+    const argsType = format.split(',');
+    let val = null;
+
+    if (args.length !== argsType.length) return false;
+
+    const returnArgs = [];
+    for (let i = 0; i < args.length; i += 1) {
+      if (argsType[i] === 'bytes12') {
+        val = toBytes12(args[i]);
+      } else if (argsType[i] === 'bytes32' && /^\d+$/.test(args[i])) {
+        // It also checks that the bytes32 is a number. Otherwise we do send it as string
+        val = toBytes(args[i], 32);
+      } else {
+        val = args[i];
+      }
+      returnArgs.push(val);
+    }
+
+    return returnArgs;
+  },
 };
