@@ -81,7 +81,6 @@ function runMethod(type, method, args) {
     if (dapple[method]) {
       if (method === 'inspect') {
         console.log('Getting result... Please wait.');
-        console.log('Result:');
         dump(dapple.inspect(...utils.prepareArgs(args, 'bytes12')));
       } else {
         const setterMethod = method === 'claim' || method === 'set' || method.indexOf('set_') !== -1 || method === 'unset';
@@ -105,7 +104,6 @@ function runMethod(type, method, args) {
                   if (err) {
                     console.log('Error: ', err.message);
                   } else if (dapple.owner(id) === prefs.account) {
-                    console.log('Result:');
                     dump(dapple.inspect(id));
                   } else {
                     console.warn('Something weird: ', id);
