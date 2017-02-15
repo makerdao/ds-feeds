@@ -10,7 +10,8 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install the software and how to install them
 
 ```
-Give examples
+- Node
+- Parity or Geth
 ```
 
 ### Installing
@@ -20,40 +21,67 @@ A step by step series of examples that tell you have to get a development env ru
 Say what the step will be
 
 ```
-Give the example
-```
-
-And repeat
-
-```
-until finished
+npm install -g ds-feeds
 ```
 
 End with an example of getting some data out of the system or using it for a little demo
 
-## Running the tests
+## Running the command line
 
-Explain how to run the automated tests for this system
+ds-feeds allows you to manage feedbase and aggregator feeds.
 
-### Break down into end to end tests
-
-Explain what these tests test and why
-
+You just need to execute
 ```
-Give an example
+ds-feeds feedbase|f <method> [args...]
 ```
-
-### And coding style tests
-
-Explain what these tests test and why
-
+or
 ```
-Give an example
+ds-feeds aggregator|a <method> [args...]
 ```
 
-## Deployment
+### List of commands
 
-Add additional notes about how to deploy this on a live system
+```
+ds-feeds feedbase --help
+
+inspect           [feedbaseId]
+owner             [feedbaseId]
+label             [feedbaseId]
+timestamp         [feedbaseId]
+expiration        [feedbaseId]
+expired           [feedbaseId]
+get               [feedbaseId]
+tryGet            [feedbaseId]
+
+claim             []
+set               [feedbaseId, value, expiration]
+set               [feedbaseId, value] (expiration = unlimited)
+set_owner         [feedbaseId, ownerAddress]
+set_label         [feedbaseId, labelText]
+```
+
+```
+ds-feeds aggregator --help
+
+inspect           [aggregatorId]
+owner             [aggregatorId]
+label             [aggregatorId]
+minimumValid      [aggregatorId]
+feedsQuantity     [aggregatorId]
+get               [aggregatorId]
+tryGet            [aggregatorId]
+tryGetFeed        [aggregatorId, feedPosition]
+getFeedInfo       [aggregatorId, feedPosition]
+
+claim             [] (minimumValid = 1)
+claim             [minimumValid]
+set               [aggregatorId, feedbaseAddress, feedbaseId] (adding new feedbase on aggregator)
+set               [aggregatorId, feedPosition, feedbaseAddress, feedbaseId] (editing feedbase on aggregator)
+unset             [aggregatorId, feedPosition]
+set_owner         [id, ownerAddress]
+set_label         [id, labelText]
+set_minimumValid  [id, labelText]
+```
 
 ## Built With
 
