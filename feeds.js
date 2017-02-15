@@ -104,7 +104,7 @@ function runMethod(type, method, args) {
                   if (err) {
                     console.log('Error: ', err.message);
                   } else if (dapple.owner(id) === prefs.account) {
-                    dump(dapple.inspect(id));
+                    dump(dapple.inspect(id.substring(0, 26)));
                   } else {
                     console.warn('Something weird: ', id);
                   }
