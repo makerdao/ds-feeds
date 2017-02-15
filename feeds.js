@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 
 const pkg = require('./package.json');
+const prettyjson = require('prettyjson');
 const program = require('commander');
 const CLI = require('clui');
 const inquirer = require('inquirer');
@@ -11,15 +12,21 @@ const feedbase = require('./feedbase');
 const aggregator = require('./aggregator');
 
 const Spinner = CLI.Spinner;
-let prefs = new Preferences('com.makerdao.feeds');
-
 const status = new Spinner('Connecting to network...');
 
-function getDefaultAccount(force = false) {
-  if (prefs.account && !force) {
-    return Promise.resolve({ answer: prefs.account });
-  }
-  const questions = [
+const prefs = new Preferences('com.makerdao.feeds');
+
+function dump(data, options = {}) {
+  console.log(prettyjson.render(data, options));
+}
+
+function clearPreferences() {
+  Object.keys(prefs).forEach((prop) => {
+    delete prefs[prop];
+  });
+}
+function showAccountSelector() {
+  const question = [
     {
       name: 'account',
       message: 'Select your default account:',
@@ -27,14 +34,21 @@ function getDefaultAccount(force = false) {
       choices: web3.eth.accounts,
     },
   ];
-  return inquirer.prompt(questions);
+  return inquirer.prompt(question);
+}
+
+function getDefaultAccount() {
+  if (prefs.account) {
+    return Promise.resolve({ account: prefs.account });
+  }
+  return showAccountSelector();
 }
 
 function askForAddress(_type) {
   const type = _type === 'feedbase' ? 'feedbase' : 'aggregator';
-  // if (prefs[type]) {
-  //   return Promise.resolve(prefs[type]);
-  // }
+  if (prefs[type]) {
+    return Promise.resolve({ address: prefs[type] });
+  }
   const questions = [
     {
       name: 'address',
@@ -54,9 +68,10 @@ function inspect(type, id) {
   utils.getNetwork().then((network) => {
     status.stop();
     prefs.network = network;
-    return getDefaultAccount(false);
+    return getDefaultAccount();
   })
   .then((answer) => {
+    console.log('Answer: ', answer);
     prefs.account = answer.account;
     web3.eth.defaultAccount = answer.account;
     return askForAddress(type);
@@ -69,7 +84,7 @@ function inspect(type, id) {
     // not working??
     const result = dapple.inspect(id);
     status.stop();
-    console.log(JSON.stringify(result, null, 2));
+    dump(result);
   })
   .catch((error) => {
     status.stop();
@@ -83,7 +98,7 @@ function runMethod(type, method, args) {
   utils.getNetwork().then((network) => {
     status.stop();
     prefs.network = network;
-    return getDefaultAccount(false);
+    return getDefaultAccount();
   })
   .then((answer) => {
     prefs.account = answer.account;
@@ -97,7 +112,7 @@ function runMethod(type, method, args) {
     const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
     if (dapple[method]) {
       if (method === 'inspect') {
-        console.log(JSON.stringify(dapple.inspect(args[0]), null, 2));
+        dump(dapple.inspect(args[0]));
       } else {
         args[0] = utils.toBytes12(args[0]);
         dapple[method](...args);
@@ -105,7 +120,7 @@ function runMethod(type, method, args) {
           if (err) {
             console.log('Error: ', err.message);
           } else if (dapple.owner(id) === prefs.account) {
-            console.log(JSON.stringify(dapple.inspect(id), null, 2));
+            dump(dapple.inspect(id));
           } else {
             console.warn('Something weird: ', id);
           }
@@ -127,118 +142,47 @@ program
   .version(pkg.version)
   .option('-c, --clear', 'clear user preferences')
   .option('-a, --account [account]', 'set default account')
-  .option('-i, --info', 'gets default information');
+  .option('-i, --info', 'prints default information');
 
 program
   .command('feedbase <method> [args...]')
   .description('xxx')
   .action((method, args) => {
-    console.log({ method, args });
     runMethod('feedbase', method, args);
   });
 
 program
   .command('aggregator <method> [args...]')
   .description('xxx')
-  .action((type, method, args) => {
+  .action((method, args) => {
     if (method === 'inspect') {
       inspect('aggregator', args[0]);
-    } else {
-
     }
-    console.log({ type, method, args });
-  });
-
-program
-  .command('claim <type> [optional]')
-  .description('claims a feed or an aggregator')
-  .option('-s, --set <address>', 'sets a new contract address')
-  .action((cmd, optional) => {
-    status.start();
-    if (optional) {
-      console.log(optional);
-    }
-    utils.getNetwork().then((network) => {
-      status.stop();
-      prefs.network = network;
-      return getDefaultAccount(false);
-    })
-    .then((answer) => {
-      prefs.account = answer.account;
-      web3.eth.defaultAccount = answer.account;
-      return askForAddress(cmd);
-    })
-    .then((answer) => {
-      prefs[cmd] = answer.address;
-      console.log(JSON.stringify(prefs, null, 2));
-      const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-      status.message(`Claiming ${cmd}. Please authorize transaction.`);
-      status.start();
-      // not working??
-      // dapple.owner(utils.toBytes12(1), (e, r) => console.log(r));
-      dapple.claim({ from: web3.eth.defaultAccount }, (error, tx) => {
-        if (error) {
-          status.stop();
-          console.log('There was an error processing your transaction');
-        } else {
-          status.message(`Transaction ${tx} pending! Waiting for confirmation...`);
-          // Set up filter
-          dapple.filter({}, (err, id) => {
-            status.stop();
-            if (err) {
-              console.log('Error: ', err.message);
-            } else if (dapple.owner(id) === prefs.account) {
-              console.log(JSON.stringify(dapple.inspect(id), null, 2));
-            } else {
-              console.warn('Something weird: ', id);
-            }
-            process.exit();
-          });
-        }
-      });
-    })
-    .catch((error) => {
-      status.stop();
-      console.log(error);
-      process.exit(1);
-    });
-  });
-
-program
-  .command('inspect <type> <id>')
-  .description('inspect a feed or an aggregator')
-  .action((type, id) => {
-    if (type !== 'feed' && type !== 'aggregator') {
-      console.log('Error: <type> must be "feed" or "aggregator"');
-      // process.exit(1);
-    } else {
-      inspect(type, id);
-    }
+    console.log({ method, args });
   });
 
 program.on('--help', () => {
   console.log('  Examples:');
   console.log('');
-  console.log('    $ feeds claim feed');
-  console.log('    $ feeds claim aggregator -a 0x1234...');
-  console.log('    $ feeds inspect feed 1');
+  console.log('    $ feeds feedbase claim');
+  console.log('    $ feeds feedbase set-label 3 "My Label"');
+  console.log('    $ feeds aggregator claim -a 0x929be46495338d84ec78e6894eeaec136c21ab7b');
+  console.log('    $ feeds aggregator inspect 1');
   console.log('');
 });
 
 program.parse(process.argv); // end with parse to parse through the input
 
 if (program.clear) {
-  prefs = {};
-  console.log('Cleared preferences');
+  clearPreferences();
+  console.log('Cleared preferences.');
 }
 
 if (program.account) {
   if (program.account === true) {
-    getDefaultAccount(true).then((answer) => {
-      prefs.account = answer.account;
-      web3.eth.defaultAccount = answer.account;
-      console.log('Set default account');
-    });
+    // prefs.account = answer.account;
+    // web3.eth.defaultAccount = answer.account;
+    console.log('Set default account');
   } else if (web3.isAddress(program.account)) {
     prefs.account = program.account;
     web3.eth.defaultAccount = program.account;
@@ -249,7 +193,7 @@ if (program.account) {
 }
 
 if (program.info) {
-  console.log(JSON.stringify(prefs, null, 2));
+  dump(prefs);
 }
 
 // if (!program.args.length && !program.account) program.help();
