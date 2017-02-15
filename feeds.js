@@ -49,35 +49,6 @@ function askForAddress(_type) {
   return inquirer.prompt(questions);
 }
 
-function inspect(type, id) {
-  // status.start();
-  utils.getNetwork().then((network) => {
-    status.stop();
-    prefs.network = network;
-    return getDefaultAccount(false);
-  })
-  .then((answer) => {
-    prefs.account = answer.account;
-    web3.eth.defaultAccount = answer.account;
-    return askForAddress(type);
-  })
-  .then((answer) => {
-    status.message(`Inspecting ${type}. Please wait.`);
-    status.start();
-    prefs[type] = answer.address;
-    const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-    // not working??
-    const result = dapple.inspect(id);
-    status.stop();
-    console.log(JSON.stringify(result, null, 2));
-  })
-  .catch((error) => {
-    status.stop();
-    console.log(error);
-    process.exit(1);
-  });
-}
-
 function runMethod(type, method, args) {
   // status.start();
   utils.getNetwork().then((network) => {
@@ -91,30 +62,48 @@ function runMethod(type, method, args) {
     return askForAddress(type);
   })
   .then((answer) => {
-    status.message(`Inspecting ${type}. Please wait.`);
-    status.start();
     prefs[type] = answer.address;
     const dapple = type === 'feedbase' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
     if (dapple[method]) {
       if (method === 'inspect') {
-        console.log(JSON.stringify(dapple.inspect(args[0]), null, 2));
+        console.log('Inspecting... Please wait.');
+        console.log(JSON.stringify(dapple.inspect(...utils.prepareArgs(args, 'bytes12')), null, 2));
       } else {
-        args[0] = utils.toBytes12(args[0]);
-        dapple[method](...args);
-        dapple.filter({}, (err, id) => {
-          if (err) {
-            console.log('Error: ', err.message);
-          } else if (dapple.owner(id) === prefs.account) {
-            console.log(JSON.stringify(dapple.inspect(id), null, 2));
-          } else {
-            console.warn('Something weird: ', id);
+        const subMethod = utils.detectMethodArgs(dapple[method], args.length);
+        const func = subMethod ? dapple[method][subMethod] : dapple[method];
+        const preparedArgs = subMethod ? utils.prepareArgs(args, subMethod) : args;
+        console.log('Waiting for your approval... Please sign the transaction.');
+        func(...preparedArgs, (e, r) => {
+          if (!e) {
+            if (!e) {
+              if (method === 'claim' ||
+                  method === 'set' ||
+                  method.indexOf('set_') !== -1 ||
+                  method === 'unset') {
+                // It means we are calling a writing method
+                console.log(`Transaction ${r} was generated. Waiting for confirmation...`);
+
+                dapple.filter({}, (err, id) => {
+                  if (err) {
+                    console.log('Error: ', err.message);
+                  } else if (dapple.owner(id) === prefs.account) {
+                    console.log(JSON.stringify(dapple.inspect(id), null, 2));
+                  } else {
+                    console.warn('Something weird: ', id);
+                  }
+                  process.exit();
+                });
+              } else {
+                // It means we are calling a read method
+                console.log('Result', JSON.stringify(r, null, 2));
+              }
+            } else {
+              console.warn('Something weird: ', e);
+            }
           }
-          process.exit();
         });
       }
     }
-    status.stop();
-    // console.log(JSON.stringify(dapple['claim'], null, 2));
   })
   .catch((error) => {
     status.stop();
@@ -140,80 +129,9 @@ program
 program
   .command('aggregator <method> [args...]')
   .description('xxx')
-  .action((type, method, args) => {
-    if (method === 'inspect') {
-      inspect('aggregator', args[0]);
-    } else {
-
-    }
-    console.log({ type, method, args });
-  });
-
-program
-  .command('claim <type> [optional]')
-  .description('claims a feed or an aggregator')
-  .option('-s, --set <address>', 'sets a new contract address')
-  .action((cmd, optional) => {
-    status.start();
-    if (optional) {
-      console.log(optional);
-    }
-    utils.getNetwork().then((network) => {
-      status.stop();
-      prefs.network = network;
-      return getDefaultAccount(false);
-    })
-    .then((answer) => {
-      prefs.account = answer.account;
-      web3.eth.defaultAccount = answer.account;
-      return askForAddress(cmd);
-    })
-    .then((answer) => {
-      prefs[cmd] = answer.address;
-      console.log(JSON.stringify(prefs, null, 2));
-      const dapple = cmd === 'feed' ? feedbase(answer.address, prefs.network) : aggregator(answer.address, prefs.network);
-      status.message(`Claiming ${cmd}. Please authorize transaction.`);
-      status.start();
-      // not working??
-      // dapple.owner(utils.toBytes12(1), (e, r) => console.log(r));
-      dapple.claim({ from: web3.eth.defaultAccount }, (error, tx) => {
-        if (error) {
-          status.stop();
-          console.log('There was an error processing your transaction');
-        } else {
-          status.message(`Transaction ${tx} pending! Waiting for confirmation...`);
-          // Set up filter
-          dapple.filter({}, (err, id) => {
-            status.stop();
-            if (err) {
-              console.log('Error: ', err.message);
-            } else if (dapple.owner(id) === prefs.account) {
-              console.log(JSON.stringify(dapple.inspect(id), null, 2));
-            } else {
-              console.warn('Something weird: ', id);
-            }
-            process.exit();
-          });
-        }
-      });
-    })
-    .catch((error) => {
-      status.stop();
-      console.log(error);
-      process.exit(1);
-    });
-  });
-
-program
-  .command('inspect <type> <id>')
-  .description('inspect a feed or an aggregator')
-  .action((type, id) => {
-    if (type !== 'feed' && type !== 'aggregator') {
-      console.log('Error: <type> must be "feed" or "aggregator"');
-      // process.exit(1);
-    } else {
-      inspect(type, id);
-    }
+  .action((method, args) => {
+    console.log({ method, args });
+    runMethod('aggregator', method, args);
   });
 
 program.on('--help', () => {
