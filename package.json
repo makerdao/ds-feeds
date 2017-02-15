@@ -25,6 +25,7 @@
     "commander": "^2.9.0",
     "inquirer": "^3.0.1",
     "preferences": "^0.2.1",
+    "prettyjson": "^1.2.1",
     "web3": "^0.18.2"
   },
   "devDependencies": {

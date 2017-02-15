@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 
 const pkg = require('./package.json');
+const prettyjson = require('prettyjson');
 const program = require('commander');
 const CLI = require('clui');
 const inquirer = require('inquirer');
@@ -11,15 +12,21 @@ const feedbase = require('./feedbase');
 const aggregator = require('./aggregator');
 
 const Spinner = CLI.Spinner;
-let prefs = new Preferences('com.makerdao.feeds');
-
 const status = new Spinner('Connecting to network...');
 
-function getDefaultAccount(force = false) {
-  if (prefs.account && !force) {
-    return Promise.resolve({ answer: prefs.account });
-  }
-  const questions = [
+const prefs = new Preferences('com.makerdao.feeds');
+
+function dump(data, options = {}) {
+  console.log(prettyjson.render(data, options));
+}
+
+function clearPreferences() {
+  Object.keys(prefs).forEach((prop) => {
+    delete prefs[prop];
+  });
+}
+function showAccountSelector() {
+  const question = [
     {
       name: 'account',
       message: 'Select your default account:',
@@ -27,14 +34,21 @@ function getDefaultAccount(force = false) {
       choices: web3.eth.accounts,
     },
   ];
-  return inquirer.prompt(questions);
+  return inquirer.prompt(question);
+}
+
+function getDefaultAccount() {
+  if (prefs.account) {
+    return Promise.resolve({ account: prefs.account });
+  }
+  return showAccountSelector();
 }
 
 function askForAddress(_type) {
   const type = _type === 'feedbase' ? 'feedbase' : 'aggregator';
-  // if (prefs[type]) {
-  //   return Promise.resolve(prefs[type]);
-  // }
+  if (prefs[type]) {
+    return Promise.resolve({ address: prefs[type] });
+  }
   const questions = [
     {
       name: 'address',
@@ -54,7 +68,7 @@ function runMethod(type, method, args) {
   utils.getNetwork().then((network) => {
     status.stop();
     prefs.network = network;
-    return getDefaultAccount(false);
+    return getDefaultAccount();
   })
   .then((answer) => {
     prefs.account = answer.account;
@@ -67,7 +81,8 @@ function runMethod(type, method, args) {
     if (dapple[method]) {
       if (method === 'inspect') {
         console.log('Getting result... Please wait.');
-        console.log('Result', JSON.stringify(dapple.inspect(...utils.prepareArgs(args, 'bytes12')), null, 2));
+        console.log('Result:');
+        dump(dapple.inspect(...utils.prepareArgs(args, 'bytes12')));
       } else {
         const setterMethod = method === 'claim' || method === 'set' || method.indexOf('set_') !== -1 || method === 'unset';
         const subMethod = utils.detectMethodArgs(dapple[method], args.length);
@@ -90,7 +105,8 @@ function runMethod(type, method, args) {
                   if (err) {
                     console.log('Error: ', err.message);
                   } else if (dapple.owner(id) === prefs.account) {
-                    console.log('Result', JSON.stringify(dapple.inspect(id), null, 2));
+                    console.log('Result:');
+                    dump(dapple.inspect(id));
                   } else {
                     console.warn('Something weird: ', id);
                   }
@@ -98,7 +114,7 @@ function runMethod(type, method, args) {
                 });
               } else {
                 // It means we are calling a read method
-                console.log('Result', JSON.stringify(r, null, 2));
+                dump(r);
               }
             } else {
               console.warn('Something weird: ', e);
@@ -119,13 +135,12 @@ program
   .version(pkg.version)
   .option('-c, --clear', 'clear user preferences')
   .option('-a, --account [account]', 'set default account')
-  .option('-i, --info', 'gets default information');
+  .option('-i, --info', 'prints default information');
 
 program
   .command('feedbase <method> [args...]')
   .description('xxx')
   .action((method, args) => {
-    console.log({ method, args });
     runMethod('feedbase', method, args);
   });
 
@@ -140,26 +155,25 @@ program
 program.on('--help', () => {
   console.log('  Examples:');
   console.log('');
-  console.log('    $ feeds claim feed');
-  console.log('    $ feeds claim aggregator -a 0x1234...');
-  console.log('    $ feeds inspect feed 1');
+  console.log('    $ feeds feedbase claim');
+  console.log('    $ feeds feedbase set-label 3 "My Label"');
+  console.log('    $ feeds aggregator claim -a 0x929be46495338d84ec78e6894eeaec136c21ab7b');
+  console.log('    $ feeds aggregator inspect 1');
   console.log('');
 });
 
 program.parse(process.argv); // end with parse to parse through the input
 
 if (program.clear) {
-  prefs = {};
-  console.log('Cleared preferences');
+  clearPreferences();
+  console.log('Cleared preferences.');
 }
 
 if (program.account) {
   if (program.account === true) {
-    getDefaultAccount(true).then((answer) => {
-      prefs.account = answer.account;
-      web3.eth.defaultAccount = answer.account;
-      console.log('Set default account');
-    });
+    // prefs.account = answer.account;
+    // web3.eth.defaultAccount = answer.account;
+    console.log('Set default account');
   } else if (web3.isAddress(program.account)) {
     prefs.account = program.account;
     web3.eth.defaultAccount = program.account;
@@ -170,7 +184,7 @@ if (program.account) {
 }
 
 if (program.info) {
-  console.log(JSON.stringify(prefs, null, 2));
+  dump(prefs);
 }
 
 // if (!program.args.length && !program.account) program.help();
